@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Defects{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Defects</h1><p class="lead">All recorded defect entries. Add defects from an inspection.</p></div>
+<div class="actions"><a class="btn secondary" href="{{ url_for('defects.categories') }}">Defect categories</a><a class="btn secondary" href="{{ url_for('defects.severities') }}">Severity levels</a></div></div>
+<form method="get" class="card filters">
+  <div class="field"><label for="q">Search</label><input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Inspection, product, cause or observation"></div>
+  <div class="field"><label for="category_id">Category</label><select id="category_id" name="category_id"><option value="">All</option>{% for c in categories %}<option value="{{ c.id }}"{{ ' selected' if filters.category_id == c.id }}>{{ c.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="severity_id">Severity</label><select id="severity_id" name="severity_id"><option value="">All</option><option value="-1"{{ ' selected' if filters.severity_id == -1 }}>Not classified</option>{% for s in severities %}<option value="{{ s.id }}"{{ ' selected' if filters.severity_id == s.id }}>{{ s.name }}</option>{% endfor %}</select></div>
+  <button class="btn" type="submit">Filter</button><a class="btn secondary" href="{{ url_for('defects.list_view') }}">Clear</a>
+</form>
+{% if page.items %}
+<div class="table-wrap"><table><thead><tr><th>Inspection</th><th>Date</th><th>Product</th><th>Category</th><th>Severity</th><th class="num">Quantity</th><th>Suspected cause</th></tr></thead><tbody>
+{% for d, insp, cat, sev in page.items %}<tr><td><a href="{{ url_for('inspections.detail', inspection_id=insp.id) }}">{{ insp.inspection_code }}</a></td><td>{{ insp.inspection_date|fmt_date }}</td><td>{{ insp.product_reference }}</td><td>{{ cat.name }}</td><td>{{ sev.name if sev else 'Not classified' }}</td><td class="num">{{ d.defect_quantity|qty }} {{ d.quantity_unit }}</td><td>{{ d.suspected_cause or '-' }}</td></tr>{% endfor %}
+</tbody></table></div>{{ m.pager(page, 'defects.list_view', qs) }}
+{% else %}{{ m.empty('No defect entries match.' if qs else 'No defect entries have been recorded yet.') }}{% endif %}
+{% endblock %}

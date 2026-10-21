@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h1>Reports</h1>
+<p class="lead">Every report states the filters it used. Rates are shown as "Not applicable" when there is no valid denominator; quantities in different units are never combined.</p>
+<nav class="tabs" aria-label="Report type">
+{% for key, label in views %}<a href="{{ url_for('reports.index', view=key, date_from=form.get('date_from',''), date_to=form.get('date_to',''), product=form.get('product',''), batch=form.get('batch',''), stage=form.get('stage',''), category_id=form.get('category_id',''), severity_id=form.get('severity_id',''), disposition=form.get('disposition','')) }}" class="{{ 'active' if key == view }}"{% if key == view %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+<form method="get" class="card filters" aria-label="Report filters">
+  <input type="hidden" name="view" value="{{ view }}">
+  <div class="field"><label for="date_from">From</label><input type="date" id="date_from" name="date_from" value="{{ form.get('date_from','') }}"></div>
+  <div class="field"><label for="date_to">To</label><input type="date" id="date_to" name="date_to" value="{{ form.get('date_to','') }}"></div>
+  <div class="field"><label for="product">Product</label><select id="product" name="product"><option value="">All</option>{% for v in products %}<option value="{{ v }}"{{ ' selected' if v == form.get('product') }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="batch">Batch</label><select id="batch" name="batch"><option value="">All</option>{% for v in batches %}<option value="{{ v }}"{{ ' selected' if v == form.get('batch') }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="stage">Stage / type</label><select id="stage" name="stage"><option value="">All</option>{% for v in stages %}<option value="{{ v }}"{{ ' selected' if v == form.get('stage') }}>{{ v }}</option>{% endfor %}</select></div>
+  {% if true %}
+  <div class="field"><label for="category_id">Defect category</label><select id="category_id" name="category_id"><option value="">All</option>{% for c in categories %}<option value="{{ c.id }}"{{ ' selected' if form.get('category_id') == c.id|string }}>{{ c.name }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="severity_id">Severity</label><select id="severity_id" name="severity_id"><option value="">All</option><option value="-1"{{ ' selected' if form.get('severity_id') == '-1' }}>Not classified</option>{% for s in severities %}<option value="{{ s.id }}"{{ ' selected' if form.get('severity_id') == s.id|string }}>{{ s.name }}</option>{% endfor %}</select></div>
+  {% endif %}
+  <div class="field"><label for="disposition">Disposition</label><select id="disposition" name="disposition"><option value="">All</option>{% for k, label in disposition_labels.items() %}<option value="{{ k }}"{{ ' selected' if form.get('disposition') == k }}>{{ label }}</option>{% endfor %}</select></div>
+  {% if view == 'trend' %}<div class="field"><label for="interval">Interval</label><select id="interval" name="interval">{% for i in intervals %}<option value="{{ i }}"{{ ' selected' if i == interval }}>{{ i|capitalize }}</option>{% endfor %}</select></div>{% endif %}
+  <button class="btn" type="submit">Run report</button><a class="btn secondary" href="{{ url_for('reports.index', view=view) }}">Reset</a>
+</form>
+{{ m.error_summary(errors) }}
+{% if data is not none %}
+<p class="notice"><strong>Filters used:</strong> {{ filters.describe()|join('; ') }}.</p>
+
+{% macro simple_table(rows, first_label, count_label) %}
+{% if rows %}<div class="table-wrap"><table><thead><tr><th>{{ first_label }}</th><th>Unit</th><th class="num">{{ count_label }}</th><th class="num">Quantity</th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ r.label }}</td><td>{{ r.unit }}</td><td class="num">{{ (r.entries if r.entries is defined else r.inspections)|qty }}</td><td class="num">{{ r.quantity|qty }}</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p class="muted">No matching records.</p>{% endif %}
+{% endmacro %}
+
+{% if view == 'summary' %}
+  <div class="grid cols-3"><div class="metric"><div class="label">Inspections</div><div class="value">{{ data.total_inspections|qty }}</div></div></div>
+  <h2>By unit</h2>
+  {% if data.by_unit %}<div class="table-wrap"><table><thead><tr><th>Unit</th><th class="num">Inspections</th><th class="num">Inspected quantity</th></tr></thead><tbody>{% for r in data.by_unit %}<tr><td>{{ r.unit }}</td><td class="num">{{ r.inspections|qty }}</td><td class="num">{{ r.quantity|qty }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">No inspections match these filters.</p>{% endif %}
+  <h2>By product</h2>{{ simple_table(data.by_product, 'Product', 'Inspections') }}
+  <h2>By production stage</h2>{{ simple_table(data.by_stage, 'Stage', 'Inspections') }}
+
+{% elif view == 'defects' %}
+  <div class="grid cols-3"><div class="metric"><div class="label">Defect records</div><div class="value">{{ data.entries|qty }}</div><div class="sub">count of entries</div></div>
+  <div class="metric"><div class="label">Inspections with defects</div><div class="value">{{ data.inspections_with_defects|qty }}</div></div></div>
+  <h2>Defect quantity by unit</h2>
+  {% if data.by_unit %}<div class="table-wrap"><table><thead><tr><th>Unit</th><th class="num">Defect records</th><th class="num">Defect quantity</th></tr></thead><tbody>{% for r in data.by_unit %}<tr><td>{{ r.unit }}</td><td class="num">{{ r.entries|qty }}</td><td class="num">{{ r.quantity|qty }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">No defect records match these filters.</p>{% endif %}
+  <h2>By category</h2>{{ simple_table(data.by_category, 'Category', 'Defect records') }}
+  <h2>By severity</h2>{{ simple_table(data.by_severity, 'Severity', 'Defect records') }}
+  <h2>By product</h2>{{ simple_table(data.by_product, 'Product', 'Defect records') }}
+
+{% elif view == 'disposition' %}
+  <h2>Recorded dispositions</h2>
+  {% if data.recorded %}<div class="table-wrap"><table><thead><tr><th>Unit</th><th class="num">Inspections</th><th class="num">Inspected</th><th class="num">Accepted</th><th class="num">Rework</th><th class="num">Rejected</th><th class="num">Pending</th><th class="num">Rework rate</th><th class="num">Rejection rate</th></tr></thead><tbody>
+  {% for r in data.recorded %}<tr><td>{{ r.unit }}</td><td class="num">{{ r.inspections|qty }}</td><td class="num">{{ r.inspected|qty }}</td><td class="num">{{ r.accepted|qty }}</td><td class="num">{{ r.rework|qty }}</td><td class="num">{{ r.rejected|qty }}</td><td class="num">{{ r.pending|qty }}</td><td class="num">{{ r.rework_rate|rate }}</td><td class="num">{{ r.rejection_rate|rate }}</td></tr>{% endfor %}</tbody></table></div>
+  <p class="muted">Rates = rework (or rejected) quantity / inspected quantity, using only inspections that have a recorded disposition.</p>
+  {% else %}<p class="muted">No disposition records match these filters.</p>{% endif %}
+  {% if data.not_recorded %}<h2>Inspections without a disposition</h2><div class="table-wrap"><table><thead><tr><th>Unit</th><th class="num">Inspections</th><th class="num">Inspected quantity</th></tr></thead><tbody>{% for r in data.not_recorded %}<tr><td>{{ r.unit }}</td><td class="num">{{ r.inspections|qty }}</td><td class="num">{{ r.inspected|qty }}</td></tr>{% endfor %}</tbody></table></div><p class="muted">These are excluded from the rates above and are not treated as accepted.</p>{% endif %}
+
+{% elif view == 'trend' %}
+  <h2>Activity by {{ interval }}</h2>
+  {% if data.activity %}<div class="table-wrap"><table><thead><tr><th>Period</th><th>Unit</th><th class="num">Inspections</th><th class="num">Inspected</th><th class="num">Rework rate</th><th class="num">Rejection rate</th></tr></thead><tbody>
+  {% for r in data.activity %}<tr><td>{{ r.label }}</td><td>{{ r.unit }}</td><td class="num">{{ r.inspections|qty }}</td><td class="num">{{ r.inspected|qty }}</td><td class="num">{{ r.rework_rate|rate }}</td><td class="num">{{ r.rejection_rate|rate }}</td></tr>{% endfor %}</tbody></table></div>
+  <p class="muted">Periods with no matching records are not listed. Rates use only inspections with a recorded disposition.</p>{% else %}<p class="muted">No inspections match these filters.</p>{% endif %}
+  <h2>Defects by {{ interval }}</h2>
+  {% if data.defects %}<div class="table-wrap"><table><thead><tr><th>Period</th><th>Unit</th><th class="num">Defect records</th><th class="num">Defect quantity</th></tr></thead><tbody>{% for r in data.defects %}<tr><td>{{ r.label }}</td><td>{{ r.unit }}</td><td class="num">{{ r.entries|qty }}</td><td class="num">{{ r.quantity|qty }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">No defect records match these filters.</p>{% endif %}
+
+{% else %}
+  <div class="grid cols-4">{% for s in data.by_status %}<div class="metric"><div class="label">{{ s.label }}</div><div class="value">{{ s.count }}</div></div>{% endfor %}</div>
+  <h2>Overdue ({{ data.overdue|length }})</h2>
+  {% if data.overdue %}<div class="table-wrap"><table><thead><tr><th>#</th><th>Inspection</th><th>Problem</th><th>Responsible</th><th>Target date</th><th>Status</th></tr></thead><tbody>{% for a, insp in data.overdue %}<tr><td><a href="{{ url_for('actions.detail', action_id=a.id) }}">{{ a.id }}</a></td><td>{{ insp.inspection_code }}</td><td>{{ a.problem_description|truncate(80) }}</td><td>{{ a.responsible_person or '-' }}</td><td>{{ a.target_date|fmt_date }}</td><td>{{ m.action_badge(a.status) }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">No overdue actions. Actions without a target date are never counted as overdue.</p>{% endif %}
+  <h2>Completed, awaiting follow-up ({{ data.awaiting_followup|length }})</h2>
+  {% if data.awaiting_followup %}<div class="table-wrap"><table><thead><tr><th>#</th><th>Inspection</th><th>Problem</th><th>Completed on</th></tr></thead><tbody>{% for a, insp in data.awaiting_followup %}<tr><td><a href="{{ url_for('actions.detail', action_id=a.id) }}">{{ a.id }}</a></td><td>{{ insp.inspection_code }}</td><td>{{ a.problem_description|truncate(80) }}</td><td>{{ a.completed_on|fmt_date }}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="muted">Nothing is awaiting follow-up.</p>{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

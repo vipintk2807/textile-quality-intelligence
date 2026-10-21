@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ 'Edit defect' if defect else 'Add defect' }}{% endblock %}
+{% block content %}
+<h1>{{ 'Edit defect entry' if defect else 'Add defect entry' }}</h1>
+<p class="lead">Inspection <a href="{{ url_for('inspections.detail', inspection_id=inspection.id) }}">{{ inspection.inspection_code }}</a> &middot; unit: {{ inspection.quantity_unit }}</p>
+{{ m.error_summary(errors) }}
+<form method="post" class="card" novalidate data-warn-unsaved data-once>
+  {{ m.csrf() }}
+  {% set src = form if form else ({'category_id': defect.category_id|string, 'severity_id': (defect.severity_id|string if defect.severity_id else ''), 'defect_quantity': defect.defect_quantity|string, 'quantity_unit': defect.quantity_unit, 'suspected_cause': defect.suspected_cause or '', 'observations': defect.observations or ''} if defect else {}) %}
+  <div class="form-grid">
+    <div class="field{{ ' has-error' if errors.get('category_id') }}"><label for="f-category_id">Defect category <span class="req">*</span></label>
+      <select id="f-category_id" name="category_id"><option value="">Select...</option>{% for c in categories %}<option value="{{ c.id }}"{{ ' selected' if src.get('category_id') == c.id|string }}>{{ c.name }}{{ ' (inactive)' if not c.is_active }}</option>{% endfor %}</select>{{ m.field_error(errors, 'category_id') }}</div>
+    <div class="field{{ ' has-error' if errors.get('severity_id') }}"><label for="f-severity_id">Severity</label>
+      <select id="f-severity_id" name="severity_id"><option value="">Not classified</option>{% for s in severities %}<option value="{{ s.id }}"{{ ' selected' if src.get('severity_id') == s.id|string }}>{{ s.name }}{{ ' (inactive)' if not s.is_active }}</option>{% endfor %}</select>{{ m.field_error(errors, 'severity_id') }}</div>
+    {{ m.field('defect_quantity', 'Affected quantity', src.get('defect_quantity',''), errors, type='number', required=True, min=1, step=1) }}
+    {{ m.field('quantity_unit', 'Unit', src.get('quantity_unit','') or inspection.quantity_unit, errors, hint='Must match the inspection unit (' ~ inspection.quantity_unit ~ ').', maxlength=30) }}
+    {{ m.textarea('suspected_cause', 'Suspected cause', src.get('suspected_cause',''), errors, maxlength=limits.long_text) }}
+    {{ m.textarea('observations', 'Observations', src.get('observations',''), errors, maxlength=limits.long_text) }}
+  </div>
+  <div class="actions" style="margin-top:12px"><button class="btn" type="submit">Save</button><a class="btn secondary" href="{{ url_for('inspections.detail', inspection_id=inspection.id) }}">Cancel</a></div>
+</form>
+{% endblock %}

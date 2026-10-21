@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Corrective actions{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Corrective actions</h1><p class="lead">Track actions from problem through completion and effectiveness follow-up.</p></div>
+<div class="actions"><a class="btn" href="{{ url_for('actions.create') }}">New corrective action</a></div></div>
+<form method="get" class="card filters">
+  <div class="field"><label for="q">Search</label><input type="search" id="q" name="q" value="{{ filters.q }}"></div>
+  <div class="field"><label for="status">Status</label><select id="status" name="status"><option value="">All</option>{% for s in action_statuses %}<option value="{{ s }}"{{ ' selected' if filters.status == s }}>{{ action_status_labels[s] }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="responsible">Responsible</label><select id="responsible" name="responsible"><option value="">All</option>{% for v in responsible_people %}<option value="{{ v }}"{{ ' selected' if v|lower == filters.responsible|lower }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="product">Product</label><select id="product" name="product"><option value="">All</option>{% for v in products %}<option value="{{ v }}"{{ ' selected' if v|lower == filters.product|lower }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="batch">Batch</label><select id="batch" name="batch"><option value="">All</option>{% for v in batches %}<option value="{{ v }}"{{ ' selected' if v|lower == filters.batch|lower }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label><input type="checkbox" name="overdue" value="1"{{ ' checked' if filters.overdue_only }}> Overdue only</label></div>
+  <button class="btn" type="submit">Filter</button><a class="btn secondary" href="{{ url_for('actions.list_view') }}">Clear</a>
+</form>
+{% if page.items %}
+<div class="table-wrap"><table><thead><tr><th>#</th><th>Inspection</th><th>Problem</th><th>Responsible</th><th>Target date</th><th>Status</th></tr></thead><tbody>
+{% for a, insp in page.items %}<tr><td><a href="{{ url_for('actions.detail', action_id=a.id) }}">{{ a.id }}</a></td>
+<td><a href="{{ url_for('inspections.detail', inspection_id=insp.id) }}">{{ insp.inspection_code }}</a><br><span class="muted">{{ insp.product_reference }}</span></td>
+<td>{{ a.problem_description|truncate(100) }}</td><td>{{ a.responsible_person or '-' }}</td>
+<td class="nowrap">{{ a.target_date|fmt_date }}{% if is_overdue(a.target_date, a.status, today) %} <span class="badge error">Overdue</span>{% endif %}</td>
+<td>{{ m.action_badge(a.status) }}</td></tr>{% endfor %}
+</tbody></table></div>{{ m.pager(page, 'actions.list_view', qs) }}
+{% else %}{{ m.empty('No corrective actions match.' if qs else 'No corrective actions have been recorded yet.', url_for('actions.create'), 'New corrective action') }}{% endif %}
+{% endblock %}

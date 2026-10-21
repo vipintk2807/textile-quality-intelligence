@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ 'Edit corrective action' if action else 'New corrective action' }}{% endblock %}
+{% block content %}
+<h1>{{ 'Edit corrective action #' ~ action.id if action else 'New corrective action' }}</h1>
+<p class="lead">Status changes and follow-up assessments are recorded from the action's detail page.</p>
+{{ m.error_summary(errors) }}
+<form method="post" class="card" novalidate data-warn-unsaved data-once>
+  {{ m.csrf() }}
+  <div class="form-grid">
+    <div class="field{{ ' has-error' if errors.get('inspection_id') }}"><label for="f-inspection_id">Inspection <span class="req">*</span></label>
+      {% if action %}<input type="hidden" name="inspection_id" value="{{ action.inspection_id }}"><div>{{ action.inspection.inspection_code }} - {{ action.inspection.product_reference }}</div>
+      {% else %}<select id="f-inspection_id" name="inspection_id"><option value="">Select...</option>{% for i in inspections %}<option value="{{ i.id }}"{{ ' selected' if selected_inspection == i.id }}>{{ i.inspection_code }} - {{ i.product_reference }} ({{ i.inspection_date|fmt_date }})</option>{% endfor %}</select>{% endif %}
+      {{ m.field_error(errors, 'inspection_id') }}</div>
+    <div class="field{{ ' has-error' if errors.get('defect_entry_id') }}"><label for="f-defect_entry_id">Related defect entry (optional)</label>
+      <select id="f-defect_entry_id" name="defect_entry_id"><option value="">None</option>{% for d in defects %}<option value="{{ d.id }}"{{ ' selected' if selected_defect == d.id }}>{{ d.category.name }} - {{ d.defect_quantity }} {{ d.quantity_unit }}</option>{% endfor %}</select>
+      <span class="hint">{{ 'Only defects of the chosen inspection are listed.' if defects else 'Open this page from an inspection to link one of its defects.' }}</span>
+      {{ m.field_error(errors, 'defect_entry_id') }}</div>
+    {{ m.textarea('problem_description', 'Problem description', m.val(form, action, 'problem_description'), errors, required=True, maxlength=limits.long_text) }}
+    {{ m.textarea('suspected_cause', 'Suspected cause', m.val(form, action, 'suspected_cause'), errors, maxlength=limits.long_text, wide=False) }}
+    {{ m.textarea('confirmed_root_cause', 'Confirmed root cause', m.val(form, action, 'confirmed_root_cause'), errors, maxlength=limits.long_text, wide=False, hint='Fill in only once the cause is actually confirmed.') }}
+    {{ m.textarea('action_description', 'Corrective action description', m.val(form, action, 'action_description'), errors, maxlength=limits.long_text, hint='Required before the action can be marked completed.') }}
+    {{ m.field('responsible_person', 'Responsible person', m.val(form, action, 'responsible_person'), errors, maxlength=limits.person) }}
+    {{ m.field('target_date', 'Target date', m.val(form, action, 'target_date'), errors, type='date', hint='Optional. An action without a target date is never reported as overdue.') }}
+    {{ m.textarea('notes', 'Notes', m.val(form, action, 'notes'), errors, maxlength=limits.long_text) }}
+  </div>
+  <div class="actions" style="margin-top:12px"><button class="btn" type="submit">Save</button>
+  <a class="btn secondary" href="{{ url_for('actions.detail', action_id=action.id) if action else url_for('actions.list_view') }}">Cancel</a></div>
+</form>
+{% endblock %}

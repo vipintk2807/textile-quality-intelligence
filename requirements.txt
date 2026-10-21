@@ -1,0 +1,8 @@
+# Runtime dependencies for Textile Quality Intelligence.
+# All are free and open source (BSD/MIT/Apache-2.0 style licences).
+# Version ranges are constraints, not an assertion that every release was tested.
+Flask>=3.0,<4
+SQLAlchemy>=2.0,<3
+Flask-SQLAlchemy>=3.1,<4
+Flask-Migrate>=4.0,<5
+Flask-WTF>=1.2,<2

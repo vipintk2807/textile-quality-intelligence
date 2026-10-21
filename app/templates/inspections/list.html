@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Inspections{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Inspections</h1><p class="lead">Search and review recorded inspections.</p></div>
+<div class="actions"><a class="btn" href="{{ url_for('inspections.create') }}">New inspection</a></div></div>
+<form method="get" class="card filters" aria-label="Filter inspections">
+  <div class="field"><label for="q">Search</label><input type="search" id="q" name="q" value="{{ filters.q }}" placeholder="Code, product or batch"></div>
+  <div class="field"><label for="date_from">From</label><input type="date" id="date_from" name="date_from" value="{{ filters.date_from or '' }}"></div>
+  <div class="field"><label for="date_to">To</label><input type="date" id="date_to" name="date_to" value="{{ filters.date_to or '' }}"></div>
+  <div class="field"><label for="product">Product</label><select id="product" name="product"><option value="">All</option>{% for v in products %}<option value="{{ v }}"{{ ' selected' if v|lower == filters.product|lower }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="batch">Batch</label><select id="batch" name="batch"><option value="">All</option>{% for v in batches %}<option value="{{ v }}"{{ ' selected' if v|lower == filters.batch|lower }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="stage">Stage / type</label><select id="stage" name="stage"><option value="">All</option>{% for v in stages %}<option value="{{ v }}"{{ ' selected' if v|lower == filters.stage|lower }}>{{ v }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="disposition">Disposition</label><select id="disposition" name="disposition"><option value="">All</option>{% for k, label in disposition_labels.items() %}<option value="{{ k }}"{{ ' selected' if k == filters.disposition }}>{{ label }}</option>{% endfor %}</select></div>
+  <button class="btn" type="submit">Filter</button>
+  {% if filters.active %}<a class="btn secondary" href="{{ url_for('inspections.list_view') }}">Clear</a>{% endif %}
+  {% for msg in errors.values() %}<span class="error-text">{{ msg }}</span>{% endfor %}
+</form>
+{% if page.items %}
+<div class="table-wrap"><table>
+<thead><tr><th>Code</th><th>Date</th><th>Product</th><th>Batch</th><th>Stage / type</th><th class="num">Inspected</th><th class="num">Defect records</th><th>Disposition</th></tr></thead>
+<tbody>{% for insp, defect_count, disp in page.items %}
+<tr><td><a href="{{ url_for('inspections.detail', inspection_id=insp.id) }}">{{ insp.inspection_code }}</a></td>
+<td class="nowrap">{{ insp.inspection_date|fmt_date }}</td><td>{{ insp.product_reference }}</td><td>{{ insp.batch_reference or '-' }}</td>
+<td>{{ insp.production_stage or insp.inspection_type or '-' }}</td><td class="num">{{ insp.inspected_quantity|qty }} {{ insp.quantity_unit }}</td>
+<td class="num">{{ defect_count }}</td><td>{{ m.disposition_badge(disposition_status(disp)) }}</td></tr>
+{% endfor %}</tbody></table></div>
+{{ m.pager(page, 'inspections.list_view', qs) }}
+{% elif filters.active %}
+{{ m.empty('No inspections match these filters.', url_for('inspections.list_view'), 'Clear filters') }}
+{% else %}
+{{ m.empty('No inspections have been recorded yet.', url_for('inspections.create'), 'Record an inspection') }}
+{% endif %}
+{% endblock %}

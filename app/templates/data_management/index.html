@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Data management{% endblock %}
+{% block content %}
+<h1>Data management</h1>
+<p class="lead">Database status and backups. All data stays on this computer.</p>
+<div class="card"><h2>Database status</h2><dl class="kv">
+<dt>File</dt><dd>{{ db_path }}</dd>
+<dt>File present</dt><dd>{{ 'Yes' if status.exists else 'No' }}</dd>
+{% if status.exists %}<dt>Size</dt><dd>{{ status.size_bytes|qty }} bytes</dd>
+<dt>Integrity check</dt><dd>{% if status.integrity_ok %}<span class="badge success">OK</span>{% elif status.integrity_ok is none %}Not run{% else %}<span class="badge error">Failed</span> {{ status.integrity_detail }}{% endif %}</dd>
+<dt>Schema</dt><dd>{% if status.schema_ok %}<span class="badge success">Complete</span>{% else %}<span class="badge error">Incomplete</span>{% endif %} {% if status.schema_revision %}(revision {{ status.schema_revision }}){% endif %}{% if status.missing_tables %} Missing tables: {{ status.missing_tables|join(', ') }}{% endif %}</dd>{% endif %}
+</dl>
+{% if status.error %}<p class="notice warning">{{ status.error }}</p>{% endif %}
+{% if not status.exists or status.missing_tables %}<p class="notice warning">Create the database tables by running <code>flask --app run db upgrade</code> in the project folder, then restart the application.</p>{% endif %}</div>
+
+<div class="card"><h2>Backup</h2>
+<p>A backup is a verified copy of the database saved in <code>{{ backup_dir }}</code>. Existing backups are never overwritten.</p>
+<form method="post" action="{{ url_for('data.backup') }}" data-once>{{ m.csrf() }}<button class="btn" type="submit"{{ ' disabled' if not status.exists }}>Create backup now</button></form>
+{% if backups %}<div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>File</th><th>Created</th><th class="num">Size (bytes)</th></tr></thead><tbody>
+{% for b in backups %}<tr><td>{{ b.name }}</td><td>{{ b.created|fmt_datetime }}</td><td class="num">{{ b.size|qty }}</td></tr>{% endfor %}</tbody></table></div>
+{% else %}<p class="muted">No backups yet.</p>{% endif %}</div>
+
+<div class="card"><h2>Restore</h2>
+<p>Restoring replaces the whole database, so it is done from the command line with the application stopped. The current database is kept as a <code>.pre-restore-...</code> copy first.</p>
+<pre>flask --app run restore-backup "instance\backups\&lt;backup file&gt;"</pre></div>
+{% endblock %}

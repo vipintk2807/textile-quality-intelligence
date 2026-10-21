@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ title }}</h1>
+<p class="lead">Maintain your own list. Entries already used by records are deactivated rather than deleted, so history stays intact.</p></div>
+<div class="actions"><a class="btn secondary" href="{{ url_for('defects.categories') }}">Categories</a><a class="btn secondary" href="{{ url_for('defects.severities') }}">Severity levels</a></div></div>
+{{ m.error_summary(errors) }}
+<form method="post" class="card" novalidate data-once>
+  {{ m.csrf() }}<input type="hidden" name="id" value="{{ editing.id if editing else '' }}">
+  <h2>{{ 'Edit "' ~ editing.name ~ '"' if editing else 'Add' }}</h2>
+  <div class="form-grid">
+    {{ m.field('name', 'Name', m.val(form, editing, 'name'), errors, required=True, maxlength=limits.name) }}
+    {{ m.field('description', 'Description', m.val(form, editing, 'description'), errors, maxlength=limits.short_text) }}
+    {% if sortable %}{{ m.field('sort_order', 'Display order', m.val(form, editing, 'sort_order') or 0, errors, type='number', min=0, step=1, hint='Lower numbers are listed first. This is a display order only.') }}{% endif %}
+  </div>
+  <div class="actions" style="margin-top:12px"><button class="btn" type="submit">{{ 'Save changes' if editing else 'Add' }}</button>
+  {% if editing %}<a class="btn secondary" href="{{ url_for(endpoint) }}">Cancel</a>{% endif %}</div>
+</form>
+{% if items %}
+<div class="table-wrap"><table><thead><tr><th>Name</th><th>Description</th>{% if sortable %}<th class="num">Order</th>{% endif %}<th>Status</th><th></th></tr></thead><tbody>
+{% for i in items %}<tr><td>{{ i.name }}</td><td>{{ i.description or '-' }}</td>{% if sortable %}<td class="num">{{ i.sort_order }}</td>{% endif %}
+<td><span class="badge {{ 'success' if i.is_active else '' }}">{{ 'Active' if i.is_active else 'Inactive' }}</span></td>
+<td class="nowrap"><a class="btn secondary small" href="{{ url_for(endpoint, edit=i.id) }}">Edit</a>
+<form method="post" class="inline-form">{{ m.csrf() }}<input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{{ i.id }}"><button class="btn secondary small" type="submit">{{ 'Deactivate' if i.is_active else 'Activate' }}</button></form></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}{{ m.empty('Nothing has been added yet. The application does not ship with preset lists; add the entries that match your own procedures (or run "flask --app run seed-reference" for illustrative examples).') }}{% endif %}
+{% endblock %}

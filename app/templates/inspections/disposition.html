@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Disposition - {{ inspection.inspection_code }}{% endblock %}
+{% block content %}
+<h1>Disposition for {{ inspection.inspection_code }}</h1>
+<p class="lead">Inspected quantity: <strong>{{ inspection.inspected_quantity|qty }} {{ inspection.quantity_unit }}</strong>. Accepted + rework + rejected + pending must equal this quantity exactly.</p>
+{{ m.error_summary(errors) }}
+<form method="post" class="card" novalidate data-warn-unsaved data-once>
+  {{ m.csrf() }}
+  <div class="form-grid">
+    {% for name, label in [('accepted_quantity','Accepted quantity'),('rework_quantity','Rework quantity'),('rejected_quantity','Rejected quantity'),('pending_quantity','Pending quantity')] %}
+    <div class="field{{ ' has-error' if errors.get(name) }}"><label for="f-{{ name }}">{{ label }}</label>
+      <input type="number" min="0" step="1" id="f-{{ name }}" name="{{ name }}" data-disp-qty value="{{ form.get(name, '') if form else (record[name] if record else '') }}">
+      {{ m.field_error(errors, name) }}</div>
+    {% endfor %}
+    {{ m.textarea('notes', 'Notes', m.val(form, record, 'notes'), errors, maxlength=limits.long_text) }}
+  </div>
+  <p>Running total: <strong id="disp-total" data-inspected="{{ inspection.inspected_quantity }}">-</strong> {{ inspection.quantity_unit }}</p>
+  <div class="actions"><button class="btn" type="submit">Save disposition</button>
+  <a class="btn secondary" href="{{ url_for('inspections.detail', inspection_id=inspection.id) }}">Cancel</a></div>
+</form>
+{% if record %}
+<form method="post" action="{{ url_for('inspections.disposition_delete', inspection_id=inspection.id) }}" data-confirm="Remove this disposition record?">{{ m.csrf() }}<button class="btn danger" type="submit">Remove disposition record</button></form>
+{% endif %}
+{% endblock %}

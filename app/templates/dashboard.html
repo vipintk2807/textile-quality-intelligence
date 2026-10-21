@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>Dashboard</h1>
+<p class="lead">Quality activity for: <strong>{{ filters.describe()|join('; ') }}</strong>.</p></div>
+<div class="actions"><a class="btn" href="{{ url_for('inspections.create') }}">New inspection</a></div></div>
+
+<form method="get" class="filters card" aria-label="Dashboard period">
+  <div class="field"><label for="date_from">From</label><input type="date" id="date_from" name="date_from" value="{{ filters.date_from or '' }}"></div>
+  <div class="field"><label for="date_to">To</label><input type="date" id="date_to" name="date_to" value="{{ filters.date_to or '' }}"></div>
+  <button class="btn" type="submit">Apply period</button>
+  <a class="btn secondary" href="{{ url_for('dashboard.index') }}">Last 30 days</a>
+  {% for k, msg in errors.items() %}<span class="error-text">{{ msg }}</span>{% endfor %}
+</form>
+
+{% if summary.total_inspections_all_time == 0 %}
+  {{ m.empty('No inspections have been recorded yet. Record your first inspection to see quality figures here.', url_for('inspections.create'), 'Record an inspection') }}
+{% else %}
+{% set d = summary.defects %}{% set i = summary.inspections %}{% set a = summary.actions %}
+<div class="grid cols-4">
+  <div class="metric"><div class="label">Inspections in period</div><div class="value">{{ i.total_inspections|qty }}</div>
+    <div class="sub">of {{ summary.total_inspections_all_time|qty }} recorded overall</div></div>
+  <div class="metric"><div class="label">Defect records</div><div class="value">{{ d.entries|qty }}</div>
+    <div class="sub">in {{ d.inspections_with_defects|qty }} inspections (record count, not quantity)</div></div>
+  <div class="metric"><div class="label">Corrective actions awaiting follow-up</div><div class="value">{{ a.awaiting_followup|length }}</div><div class="sub">all recorded actions</div></div>
+  <div class="metric"><div class="label">Overdue corrective actions</div><div class="value">{{ a.overdue|length }}</div><div class="sub">open or in progress past target date</div></div>
+</div>
+
+<h2>Quantities by unit</h2>
+<p class="muted">Quantities in different units are never added together.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Unit</th><th class="num">Inspections</th><th class="num">Inspected quantity</th><th class="num">Defect records</th><th class="num">Defect quantity</th></tr></thead>
+<tbody>
+{% set defect_units = {} %}{% for r in d.by_unit %}{% set _ = defect_units.update({r.unit: r}) %}{% endfor %}
+{% for r in i.by_unit %}<tr><td>{{ r.unit }}</td><td class="num">{{ r.inspections|qty }}</td><td class="num">{{ r.quantity|qty }}</td>
+<td class="num">{{ (defect_units[r.unit].entries if r.unit in defect_units else 0)|qty }}</td>
+<td class="num">{{ (defect_units[r.unit].quantity if r.unit in defect_units else 0)|qty }}</td></tr>
+{% else %}<tr><td colspan="5" class="muted">No inspections in this period.</td></tr>{% endfor %}
+</tbody></table></div>
+
+<h2>Disposition (inspections with a recorded disposition)</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Unit</th><th class="num">Inspections</th><th class="num">Inspected</th><th class="num">Accepted</th><th class="num">Rework</th><th class="num">Rejected</th><th class="num">Pending</th><th class="num">Rework rate</th><th class="num">Rejection rate</th></tr></thead>
+<tbody>
+{% for r in summary.disposition.recorded %}<tr><td>{{ r.unit }}</td><td class="num">{{ r.inspections|qty }}</td><td class="num">{{ r.inspected|qty }}</td><td class="num">{{ r.accepted|qty }}</td><td class="num">{{ r.rework|qty }}</td><td class="num">{{ r.rejected|qty }}</td><td class="num">{{ r.pending|qty }}</td><td class="num">{{ r.rework_rate|rate }}</td><td class="num">{{ r.rejection_rate|rate }}</td></tr>
+{% else %}<tr><td colspan="9" class="muted">No disposition records in this period.</td></tr>{% endfor %}
+</tbody></table></div>
+{% for r in summary.disposition.not_recorded %}<p class="notice warning">{{ r.inspections }} inspection(s) ({{ r.inspected|qty }} {{ r.unit }}) have no disposition recorded and are excluded from the rates above.</p>{% endfor %}
+
+<h2>Recent inspections</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Code</th><th>Date</th><th>Product</th><th>Batch</th><th class="num">Inspected</th><th class="num">Defect records</th><th>Disposition</th></tr></thead>
+<tbody>{% for insp, defect_count, disp in recent %}
+<tr><td><a href="{{ url_for('inspections.detail', inspection_id=insp.id) }}">{{ insp.inspection_code }}</a></td><td>{{ insp.inspection_date|fmt_date }}</td><td>{{ insp.product_reference }}</td><td>{{ insp.batch_reference or '-' }}</td><td class="num">{{ insp.inspected_quantity|qty }} {{ insp.quantity_unit }}</td><td class="num">{{ defect_count }}</td><td>{{ '' }}{% if disp is none %}<span class="badge warning">Not recorded</span>{% elif disp.pending_quantity > 0 %}<span class="badge warning">Pending quantity</span>{% else %}<span class="badge success">Fully dispositioned</span>{% endif %}</td></tr>
+{% endfor %}</tbody></table></div>
+{% endif %}
+{% endblock %}

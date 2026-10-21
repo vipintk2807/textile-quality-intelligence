@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ inspection.inspection_code }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ inspection.inspection_code }}</h1>
+<p class="lead">{{ inspection.product_reference }}{% if inspection.batch_reference %} &middot; batch {{ inspection.batch_reference }}{% endif %} &middot; {{ inspection.inspection_date|fmt_date }}</p></div>
+<div class="actions"><a class="btn secondary" href="{{ url_for('inspections.edit', inspection_id=inspection.id) }}">Edit</a>
+<form method="post" action="{{ url_for('inspections.delete', inspection_id=inspection.id) }}" class="inline-form" data-confirm="Delete this inspection? This cannot be undone.">{{ m.csrf() }}<button class="btn danger" type="submit">Delete</button></form></div></div>
+
+<div class="card"><h2>Inspection</h2><dl class="kv">
+<dt>Inspected quantity</dt><dd>{{ inspection.inspected_quantity|qty }} {{ inspection.quantity_unit }}</dd>
+<dt>Production stage</dt><dd>{{ inspection.production_stage or '-' }}</dd>
+<dt>Inspection type</dt><dd>{{ inspection.inspection_type or '-' }}</dd>
+<dt>Inspector</dt><dd>{{ inspection.inspector_name or '-' }}</dd>
+<dt>Notes</dt><dd>{{ inspection.notes or '-' }}</dd>
+<dt>Recorded</dt><dd>{{ inspection.created_at|fmt_datetime }}</dd></dl></div>
+
+<div class="card"><div class="page-head"><h2>Defect entries ({{ defects|length }})</h2>
+<a class="btn secondary small" href="{{ url_for('inspections.add_defect', inspection_id=inspection.id) }}">Add defect</a></div>
+{% if defects %}<div class="table-wrap"><table><thead><tr><th>Category</th><th>Severity</th><th class="num">Quantity</th><th>Suspected cause</th><th>Observations</th><th></th></tr></thead><tbody>
+{% for d in defects %}<tr><td>{{ d.category.name }}{% if not d.category.is_active %} <span class="badge">inactive</span>{% endif %}</td><td>{{ d.severity.name if d.severity else 'Not classified' }}</td>
+<td class="num">{{ d.defect_quantity|qty }} {{ d.quantity_unit }}</td><td>{{ d.suspected_cause or '-' }}</td><td>{{ d.observations or '-' }}</td>
+<td class="nowrap"><a class="btn secondary small" href="{{ url_for('defects.edit', defect_id=d.id) }}">Edit</a>
+<a class="btn secondary small" href="{{ url_for('actions.create', inspection_id=inspection.id, defect_entry_id=d.id) }}">Raise action</a>
+<form method="post" action="{{ url_for('defects.delete', defect_id=d.id) }}" class="inline-form" data-confirm="Delete this defect entry?">{{ m.csrf() }}<button class="btn danger small" type="submit">Delete</button></form></td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="muted">No defect entries recorded for this inspection.</p>{% endif %}</div>
+
+<div class="card"><div class="page-head"><h2>Disposition</h2>
+<a class="btn secondary small" href="{{ url_for('inspections.disposition', inspection_id=inspection.id) }}">{{ 'Edit disposition' if disposition else 'Record disposition' }}</a></div>
+{% if disposition %}
+<p>{{ m.disposition_badge(disposition_state) }}</p>
+<div class="table-wrap"><table><thead><tr><th class="num">Accepted</th><th class="num">Rework</th><th class="num">Rejected</th><th class="num">Pending</th><th class="num">Total</th></tr></thead><tbody>
+<tr><td class="num">{{ disposition.accepted_quantity|qty }}</td><td class="num">{{ disposition.rework_quantity|qty }}</td><td class="num">{{ disposition.rejected_quantity|qty }}</td><td class="num">{{ disposition.pending_quantity|qty }}</td><td class="num">{{ disposition.total|qty }} {{ disposition.quantity_unit }}</td></tr></tbody></table></div>
+{% if disposition.notes %}<p>{{ disposition.notes }}</p>{% endif %}
+{% else %}<p class="notice warning">No disposition has been recorded. This is not treated as "all accepted".</p>{% endif %}</div>
+
+<div class="card"><div class="page-head"><h2>Corrective actions ({{ actions|length }})</h2>
+<a class="btn secondary small" href="{{ url_for('actions.create', inspection_id=inspection.id) }}">New corrective action</a></div>
+{% if actions %}<div class="table-wrap"><table><thead><tr><th>#</th><th>Problem</th><th>Responsible</th><th>Target date</th><th>Status</th></tr></thead><tbody>
+{% for a in actions %}<tr><td><a href="{{ url_for('actions.detail', action_id=a.id) }}">{{ a.id }}</a></td><td>{{ a.problem_description|truncate(90) }}</td><td>{{ a.responsible_person or '-' }}</td><td>{{ a.target_date|fmt_date }}</td><td>{{ m.action_badge(a.status) }}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="muted">No corrective actions linked to this inspection.</p>{% endif %}</div>
+{% endblock %}

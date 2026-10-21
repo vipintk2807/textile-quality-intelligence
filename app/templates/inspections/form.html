@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}{{ 'Edit inspection' if inspection else 'New inspection' }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ 'Edit ' ~ inspection.inspection_code if inspection else 'New inspection' }}</h1>
+<p class="lead">Fields marked <span class="req">*</span> are required.{% if not inspection %} Defect entries are optional and can be added later.{% endif %}</p></div></div>
+{{ m.error_summary(errors) }}
+<form method="post" class="card" novalidate data-warn-unsaved data-once>
+  {{ m.csrf() }}
+  <div class="form-grid">
+    {{ m.field('inspection_date', 'Inspection date', m.val(form, inspection, 'inspection_date') or today_iso, errors, type='date', required=True) }}
+    {{ m.field('product_reference', 'Product or item reference', m.val(form, inspection, 'product_reference'), errors, required=True, maxlength=limits.reference) }}
+    {{ m.field('batch_reference', 'Batch or lot reference', m.val(form, inspection, 'batch_reference'), errors, maxlength=limits.reference) }}
+    {{ m.field('production_stage', 'Production stage', m.val(form, inspection, 'production_stage'), errors, list_id='stage-list', maxlength=limits.label) }}
+    {{ m.field('inspection_type', 'Inspection type', m.val(form, inspection, 'inspection_type'), errors, list_id='stage-list', maxlength=limits.label) }}
+    {{ m.field('inspector_name', 'Inspector', m.val(form, inspection, 'inspector_name'), errors, maxlength=limits.person) }}
+    {{ m.field('inspected_quantity', 'Inspected quantity', m.val(form, inspection, 'inspected_quantity'), errors, type='number', required=True, min=1, step=1, hint='Whole number.') }}
+    {{ m.field('quantity_unit', 'Unit of measure', m.val(form, inspection, 'quantity_unit'), errors, required=True, list_id='unit-list', maxlength=30, hint='For example pieces, meters, yards or kg.') }}
+    {{ m.textarea('notes', 'Inspection notes', m.val(form, inspection, 'notes'), errors, maxlength=limits.long_text) }}
+  </div>
+  <datalist id="unit-list">{% for u in unit_suggestions %}<option value="{{ u }}">{% endfor %}</datalist>
+  <datalist id="stage-list">{% for s in stage_suggestions %}<option value="{{ s }}">{% endfor %}</datalist>
+
+  {% if not inspection %}
+  <h2>Defect entries</h2>
+  {% if errors.get('defects') %}<span class="error-text">{{ errors['defects'] }}</span>{% endif %}
+  {% if not categories %}<div class="notice warning">No defect categories exist yet, so defects cannot be recorded here. <a href="{{ url_for('defects.categories') }}">Add defect categories</a> first (or save the inspection and add defects later).</div>{% endif %}
+  <p id="no-defects" class="muted"{% if rows %} hidden{% endif %}>No defect entries added. Use the button below if defects were found.</p>
+  <div id="defect-rows" data-max="{{ config.MAX_DEFECTS_PER_FORM }}" data-next="{{ (rows|map(attribute=0)|max + 1) if rows else 0 }}">
+    {% for n, row in rows %}{{ m.defect_row(n, row, errors, categories, severities) }}{% endfor %}
+  </div>
+  <button type="button" class="btn secondary" id="add-defect"{% if not categories %} disabled{% endif %}>Add defect entry</button>
+  <template id="defect-row-template">{{ m.defect_row('__INDEX__', none, {}, categories, severities) }}</template>
+  {% endif %}
+
+  <div class="actions" style="margin-top:16px">
+    <button class="btn" type="submit">{{ 'Save changes' if inspection else 'Save inspection' }}</button>
+    <a class="btn secondary" href="{{ url_for('inspections.detail', inspection_id=inspection.id) if inspection else url_for('inspections.list_view') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

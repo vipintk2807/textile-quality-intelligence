@@ -1,0 +1,85 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro val(form, obj, name) -%}
+{%- if form -%}{{ form.get(name, '') }}{%- elif obj is not none and obj[name] is defined -%}{{ obj[name] if obj[name] is not none else '' }}{%- else -%}{%- endif -%}
+{%- endmacro %}
+
+{% macro error_summary(errors) %}
+{% if errors %}<div class="error-summary" role="alert"><strong>Please correct the following:</strong>
+<ul>{% for key, message in errors.items() %}<li>{{ message }}</li>{% endfor %}</ul></div>{% endif %}
+{% endmacro %}
+
+{% macro field_error(errors, name) %}{% if errors and errors.get(name) %}<span class="error-text" id="err-{{ name }}">{{ errors[name] }}</span>{% endif %}{% endmacro %}
+
+{# Generic input. obj_value is the already-resolved current value. #}
+{% macro field(name, label, value, errors, type='text', required=False, hint='', maxlength=None, wide=False, list_id=None, min=None, step=None) %}
+<div class="field{{ ' wide' if wide }}{{ ' has-error' if errors and errors.get(name) }}">
+  <label for="f-{{ name }}">{{ label }}{% if required %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+  <input type="{{ type }}" id="f-{{ name }}" name="{{ name }}" value="{{ value }}"{% if required %} required{% endif %}{% if maxlength %} maxlength="{{ maxlength }}"{% endif %}{% if list_id %} list="{{ list_id }}" autocomplete="off"{% endif %}{% if min is not none %} min="{{ min }}"{% endif %}{% if step %} step="{{ step }}"{% endif %}{% if errors and errors.get(name) %} aria-invalid="true" aria-describedby="err-{{ name }}"{% endif %}>
+  {% if hint %}<span class="hint">{{ hint }}</span>{% endif %}
+  {{ field_error(errors, name) }}
+</div>
+{% endmacro %}
+
+{% macro textarea(name, label, value, errors, required=False, hint='', maxlength=None, wide=True) %}
+<div class="field{{ ' wide' if wide }}{{ ' has-error' if errors and errors.get(name) }}">
+  <label for="f-{{ name }}">{{ label }}{% if required %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+  <textarea id="f-{{ name }}" name="{{ name }}"{% if required %} required{% endif %}{% if maxlength %} maxlength="{{ maxlength }}"{% endif %}{% if errors and errors.get(name) %} aria-invalid="true" aria-describedby="err-{{ name }}"{% endif %}>{{ value }}</textarea>
+  {% if hint %}<span class="hint">{{ hint }}</span>{% endif %}
+  {{ field_error(errors, name) }}
+</div>
+{% endmacro %}
+
+{% macro action_badge(status) %}
+{% set cls = {'open':'info','in_progress':'info','completed_awaiting_followup':'warning','effective':'success','not_effective':'error','closed':''}[status] %}
+<span class="badge {{ cls }}">{{ status|status_label }}</span>
+{% endmacro %}
+
+{% macro disposition_badge(state) %}
+{% set cls = {'not_recorded':'warning','pending':'warning','resolved':'success'}[state] %}
+<span class="badge {{ cls }}">{{ disposition_labels[state] }}</span>
+{% endmacro %}
+
+{% macro empty(message, link_url=None, link_text=None) %}
+<div class="empty"><p>{{ message }}</p>{% if link_url %}<a class="btn" href="{{ link_url }}">{{ link_text }}</a>{% endif %}</div>
+{% endmacro %}
+
+{% macro pager(page, endpoint, qs) %}
+{% if page.total > 0 %}
+<div class="pager"><span>Showing {{ page.first_item }}-{{ page.last_item }} of {{ page.total }}</span>
+<span>
+{% if page.has_prev %}<a class="btn secondary small" href="{{ url_for(endpoint, page=page.page-1, **qs) }}">Previous</a>{% endif %}
+<span class="muted">Page {{ page.page }} of {{ page.pages }}</span>
+{% if page.has_next %}<a class="btn secondary small" href="{{ url_for(endpoint, page=page.page+1, **qs) }}">Next</a>{% endif %}
+</span></div>
+{% endif %}
+{% endmacro %}
+
+{# One defect row. n is the form index; row holds values (dict or None). #}
+{% macro defect_row(n, row, errors, categories, severities, default_unit='') %}
+{% set p = 'defect-' ~ n ~ '-' %}
+<div class="defect-row">
+  <div class="defect-row-head"><span class="row-title">Defect</span>
+    <button type="button" class="btn danger small remove-defect">Remove</button></div>
+  <div class="form-grid">
+    <div class="field{{ ' has-error' if errors.get(p ~ 'category_id') }}">
+      <label for="{{ p }}category_id">Defect category <span class="req" aria-hidden="true">*</span></label>
+      <select id="{{ p }}category_id" name="{{ p }}category_id">
+        <option value="">Select...</option>
+        {% for c in categories %}<option value="{{ c.id }}"{{ ' selected' if row and row.get('category_id') == c.id|string }}>{{ c.name }}</option>{% endfor %}
+      </select>{{ field_error(errors, p ~ 'category_id') }}
+    </div>
+    <div class="field{{ ' has-error' if errors.get(p ~ 'severity_id') }}">
+      <label for="{{ p }}severity_id">Severity</label>
+      <select id="{{ p }}severity_id" name="{{ p }}severity_id">
+        <option value="">Not classified</option>
+        {% for s in severities %}<option value="{{ s.id }}"{{ ' selected' if row and row.get('severity_id') == s.id|string }}>{{ s.name }}</option>{% endfor %}
+      </select>{{ field_error(errors, p ~ 'severity_id') }}
+    </div>
+    {{ field(p ~ 'defect_quantity', 'Affected quantity', row.get('defect_quantity','') if row else '', errors, type='number', required=True, min=1, step=1) }}
+    {{ field(p ~ 'quantity_unit', 'Unit', (row.get('quantity_unit','') if row else '') or default_unit, errors, hint='Must match the inspection unit.', maxlength=30) }}
+    {{ textarea(p ~ 'suspected_cause', 'Suspected cause', row.get('suspected_cause','') if row else '', errors, wide=False) }}
+    {{ textarea(p ~ 'observations', 'Observations', row.get('observations','') if row else '', errors, wide=False) }}
+  </div>
+</div>
+{% endmacro %}

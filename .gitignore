@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local runtime data: databases, secrets, backups, logs
+instance/*
+!instance/.gitkeep
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+*.bak
+backups/
+*.log
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+.secret_key
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Private planning material must never be published from this repository
+*planning*/
+master_prompt.md
+project_explanation.*
+app_workflow.*
+technical_specification.*
+app_theme.*
+testing_requirements.*

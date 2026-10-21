@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Corrective action #{{ action.id }}{% endblock %}
+{% block content %}
+{% set errors = errors or {} %}
+<div class="page-head"><div><h1>Corrective action #{{ action.id }}</h1>
+<p class="lead">{{ m.action_badge(action.status) }}{% if overdue %} <span class="badge error">Overdue</span>{% endif %}
+&middot; Inspection <a href="{{ url_for('inspections.detail', inspection_id=inspection.id) }}">{{ inspection.inspection_code }}</a> ({{ inspection.product_reference }})</p></div>
+<div class="actions"><a class="btn secondary" href="{{ url_for('actions.edit', action_id=action.id) }}">Edit details</a></div></div>
+
+<div class="card"><dl class="kv">
+<dt>Problem</dt><dd>{{ action.problem_description }}</dd>
+<dt>Related defect</dt><dd>{% if action.defect_entry_id %}{{ action.defect_entry.category.name if action.defect_entry else 'Linked defect' }}{% else %}-{% endif %}</dd>
+<dt>Suspected cause</dt><dd>{{ action.suspected_cause or '-' }}</dd>
+<dt>Confirmed root cause</dt><dd>{{ action.confirmed_root_cause or 'Not yet confirmed' }}</dd>
+<dt>Corrective action</dt><dd>{{ action.action_description or '-' }}</dd>
+<dt>Responsible</dt><dd>{{ action.responsible_person or '-' }}</dd>
+<dt>Target date</dt><dd>{{ action.target_date|fmt_date }}</dd>
+<dt>Completed on</dt><dd>{{ action.completed_on|fmt_date }}</dd>
+<dt>Notes</dt><dd>{{ action.notes or '-' }}</dd></dl></div>
+
+<div class="card"><h2>Change status</h2>
+{% if error_section == 'status' %}{{ m.error_summary(errors) }}{% endif %}
+{% if next_statuses %}
+<p class="muted">Completing an action is not the same as showing it worked: "Effective" and "Not effective" need a recorded follow-up assessment first.</p>
+<form method="post" action="{{ url_for('actions.change_status', action_id=action.id) }}" class="filters" data-once>
+  {{ m.csrf() }}
+  <div class="field"><label for="status">New status</label><select id="status" name="status">{% for s in next_statuses %}<option value="{{ s }}">{{ action_status_labels[s] }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="completed_on">Completion date (when completing)</label><input type="date" id="completed_on" name="completed_on" value="{{ today_iso }}" max="{{ today_iso }}"></div>
+  <button class="btn" type="submit">Change status</button>
+</form>
+{% else %}<p class="muted">This action is closed; no further status changes are available.</p>{% endif %}</div>
+
+<div class="card"><h2>Follow-up assessments ({{ followups|length }})</h2>
+{% if action.status == 'completed_awaiting_followup' %}
+{% if error_section == 'followup' %}{{ m.error_summary(errors) }}{% endif %}
+<form method="post" action="{{ url_for('actions.add_followup', action_id=action.id) }}" novalidate data-once>
+  {{ m.csrf() }}
+  <div class="form-grid">
+    {{ m.field('follow_up_date', 'Follow-up date', form.get('follow_up_date', today_iso) if form else today_iso, errors if error_section == 'followup' else {}, type='date', required=True) }}
+    <div class="field{{ ' has-error' if error_section == 'followup' and errors.get('result') }}"><label for="f-result">Result <span class="req">*</span></label>
+      <select id="f-result" name="result"><option value="">Select...</option>{% for k, label in followup_labels.items() %}<option value="{{ k }}"{{ ' selected' if form and form.get('result') == k }}>{{ label }}</option>{% endfor %}</select>
+      {% if error_section == 'followup' %}{{ m.field_error(errors, 'result') }}{% endif %}</div>
+    {{ m.field('recorded_by', 'Recorded by', form.get('recorded_by', '') if form else '', errors if error_section == 'followup' else {}, maxlength=limits.person) }}
+    {{ m.textarea('observations', 'Evidence / observations', form.get('observations', '') if form else '', errors if error_section == 'followup' else {}, required=True, maxlength=limits.long_text) }}
+  </div>
+  <button class="btn" type="submit" style="margin-top:10px">Record follow-up</button>
+</form>
+{% else %}<p class="muted">Follow-up assessments can be recorded while the action is "{{ 'completed_awaiting_followup'|status_label }}".</p>{% endif %}
+{% if followups %}<div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Date</th><th>Result</th><th>Evidence / observations</th><th>Recorded by</th></tr></thead><tbody>
+{% for f in followups %}<tr><td class="nowrap">{{ f.follow_up_date|fmt_date }}</td><td>{{ followup_labels[f.result] }}</td><td>{{ f.observations }}</td><td>{{ f.recorded_by or '-' }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}</div>
+{% endblock %}
